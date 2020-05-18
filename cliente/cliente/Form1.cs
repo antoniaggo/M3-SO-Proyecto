@@ -24,6 +24,7 @@ namespace WindowsFormsApplication1
         {
             while (true)
             {
+                //hola
                 byte[] msg2 = new byte[80];
                 server.Receive(msg2);
                 string[] trozos = Encoding.ASCII.GetString(msg2).Split('/');
