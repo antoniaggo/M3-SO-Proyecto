@@ -54,11 +54,13 @@ int get_user_socket(ListaConectados *lista,int socket) {
 			return pos;
 
 }
-int Pon (ListaConectados *lista, char nombre[20]){
+int Pon (ListaConectados *lista, char nombre[20], int socket){
 	if (lista->num<100){
 		strcpy(lista->conectados[lista->num].nombre,nombre);
+		lista->conectados[lista->num].socket = socket;
 		//
 		lista->num++;
+		printf("valor: %d", lista->num);
 		return 0;
 	}
 	else
@@ -107,7 +109,7 @@ int Eliminar (ListaConectados *lista, char nombre[20]){
 void DameConectados(ListaConectados *lista, char conectados[200]){
 	int i;
 	sprintf (conectados,"%d",lista->num);
-	for (i=0;i<lista->num;i++);
+	for (i=0;i<lista->num;i++)
 		sprintf (conectados,"%s/%s",conectados,lista->conectados[i].nombre);
 	
 }
@@ -179,7 +181,7 @@ void *AtenderCliente (void *socket)
 					
 				strcpy(contrasenya,p);
 				
-				int y = Pon (&miLista,nombre);
+				// int y = Pon (&miLista,nombre);
 				
 							
 				sprintf(consulta,"SELECT Name FROM player WHERE Name='%s' AND Pass='%s'",nombre,contrasenya);
@@ -209,7 +211,7 @@ void *AtenderCliente (void *socket)
 				else
 				{
 					
-					Pon (&miLista, nombre);
+					Pon (&miLista, nombre, sock_conn);
 					
 					DameConectados(&miLista,conectados);
 					sprintf(notificacion,"6/%s",conectados);

@@ -12,6 +12,7 @@ using System.Threading;
 
 namespace WindowsFormsApplication1
 {
+    
     public partial class Form1 : Form
     {
         Socket server;
@@ -19,6 +20,8 @@ namespace WindowsFormsApplication1
         public Form1()
         {
             InitializeComponent();
+            CheckForIllegalCrossThreadCalls = false; //Necesario para que los elementos de los formularios puedan ser
+            //accedidos desde threads diferentes a los que los crearon
         }
         private void AtenderServidor()
         {
@@ -26,15 +29,16 @@ namespace WindowsFormsApplication1
             {
                 byte[] msg2 = new byte[80];
                 server.Receive(msg2);
-                string[] trozos = Encoding.ASCII.GetString(msg2).Split('/');
+                string mensaje = Encoding.ASCII.GetString(msg2).TrimEnd('\0');
+                string[] trozos = mensaje.Split('/');
                 int codigo = Convert.ToInt32(trozos[0]);
                 //string mensaje = mensaje = trozos[1].Split('\0')[0];
-                string mensaje = trozos[1].Split('\0')[0];
+               
 
                 switch (codigo)
                 {
                     case 1:
-                        MessageBox.Show(mensaje);
+                        MessageBox.Show(trozos[1]);
                         break;
                     case 2:
                         MessageBox.Show(mensaje);
@@ -49,22 +53,20 @@ namespace WindowsFormsApplication1
                         MessageBox.Show(mensaje);
                         break;
                     case 6: 
-                        string[] res = mensaje.Split('/');
+                        // string[] res = mensaje.Split('/');
                         ListaConectados.Rows.Clear();
                         ListaConectados.Name = "Conectados";
-                        ListaConectados.ColumnCount = 2;
+                        ListaConectados.ColumnCount = 1;
                         ListaConectados.RowHeadersVisible = false;
                         ListaConectados.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
                         ListaConectados.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCellsExceptHeaders;
                         ListaConectados.Columns[0].Name = "Jugadores";
-                        ListaConectados.Columns[1].Name = "Sockets";
                         //contLbl.Text = mensaje;
-                        int i = 1;
-                        while (i <= Convert.ToInt32(res[0]))
+                        int i = 2;
+                        while (i <= Convert.ToInt32(trozos[1]))
                         {
-                            int s = 2 * i - 1;
-                            int r = 2 * i;
-                            ListaConectados.Rows.Add(res[s], res[r]);
+                           
+                            ListaConectados.Rows.Add(trozos[i]);
                             i = i + 1;
                         }
                         break;
