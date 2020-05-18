@@ -74,7 +74,7 @@ namespace WindowsFormsApplication1
         }
         private void button1_Click(object sender, EventArgs e)
         {
-            IPAddress direc = IPAddress.Parse("147.83.117.22"); // 192.168.56.102 192.168.1.127 mia 192.168.56.101
+            IPAddress direc = IPAddress.Parse("192.168.56.104"); // 192.168.56.102 192.168.1.127 mia 192.168.56.101  o 147.83.117.22
             IPEndPoint ipep = new IPEndPoint(direc, 50007); //9001
 
 
