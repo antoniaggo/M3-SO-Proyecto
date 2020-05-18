@@ -13,7 +13,7 @@
 
 #define port 50007
 
-#define database_host "shiva2.upc.es"
+#define database_host "localhost"
 #define database_name "M3_game"
 #define database_username "root"
 #define database_password "mysql"
@@ -28,26 +28,29 @@ typedef struct
 	//char email[email_max_length];  //Email	
 }User;
 
-typedef struct
-{
-	int num;
-	User users[max_users];
+/*typedef struct*/
+/*{*/
+/*	int num;*/
+/*	User users[max_users];*/
 
-}UserList; 
+/*}UserList; */
 
 typedef struct
 {
 	int num;
 	User conectados[100];
 }ListaConectados;
-UserList user_list;
+//UserList user_list;
 MYSQL *conn;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 int sockets [100];
-int get_user_socket(int socket) {
 
-	for (int pos = 0; pos < user_list.num; pos++)
-		if (user_list.users[pos].socket == socket)
+ListaConectados miLista;
+
+int get_user_socket(ListaConectados *lista,int socket) {
+
+	for (int pos = 0; pos < lista->num; pos++)
+		if (lista->conectados[pos].socket == socket)
 			return pos;
 
 }
@@ -112,7 +115,7 @@ void DameConectados(ListaConectados *lista, char conectados[200]){
 void *AtenderCliente (void *socket)
 {
 	int sock_conn = *((int *) socket);
-	ListaConectados miLista;
+	// ListaConectados miLista;
 					
 	// Entramos en un bucle para atender todas las peticiones de este cliente
 	//hasta que se desconecte
@@ -205,9 +208,24 @@ void *AtenderCliente (void *socket)
 				}
 				else
 				{
-					printf ("Usuario %s encontrado.\n", row[0] );
-					strcat(respuesta,"1/Usuario encontrado");
-					write (sock_conn,respuesta, strlen(respuesta));
+					
+					Pon (&miLista, nombre);
+					
+					DameConectados(&miLista,conectados);
+					sprintf(notificacion,"6/%s",conectados);
+					printf("Notificacion: %s\n", notificacion);
+					int j=0;
+					while (j<miLista.num)
+					{
+						write(miLista.conectados[j].socket,notificacion,strlen(notificacion));
+	
+						j=j+1;
+					}
+					
+					
+/*					printf ("Usuario %s encontrado.\n", row[0] );*/
+/*					strcat(respuesta,"1/Usuario encontrado");*/
+/*					write (sock_conn,respuesta, strlen(respuesta));*/
 				}
 			
 			break;
@@ -245,7 +263,7 @@ void *AtenderCliente (void *socket)
 						printf ("No se ha obtenido ningun ID\n");
 						IDUs=0;
 						strcat(respuesta,"2/Usuario incorrectamente registrado");
-						printf (respuesta);
+						printf ("%s",respuesta);
 						write (sock_conn,respuesta, strlen(respuesta));
 					}
 					else
@@ -399,23 +417,23 @@ void *AtenderCliente (void *socket)
 		}
 		
 	}
-
-	// Se acabo el servicio para este cliente
-	close(sock_conn); 
+ 
 	
 	pthread_mutex_lock(&mutex);
 
-	int i = get_user_socket(socket);
+	int i = get_user_socket(&miLista,sock_conn);
 
-	for (int a = i; a < (user_list.num - 1); a++){
+	for (int a = i; a < (miLista.num - 1); a++){
 
-		user_list.users[a] = user_list.users[a + 1];
+		miLista.conectados[a] = miLista.conectados[a+1];
 
 	}
 
-	user_list.num--;
+	miLista.num--;
 
 	pthread_mutex_unlock(&mutex);
+	// Se acabo el servicio para este cliente
+	close(sock_conn);
 	
 	puts("Connection closed");
 	
@@ -554,7 +572,9 @@ int main(int argc, char *argv[])
 	int sock_listen;
 	struct sockaddr_in serv_adr;
 	
-	user_list.num = 0;
+//	user_list.num = 0;
+	pthread_t thread[100]; //User's thread
+	int i = 0;
 	
 	if ((sock_listen = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		
@@ -596,7 +616,7 @@ int main(int argc, char *argv[])
 		
 	}
 	
-	conn = mysql_real_connect(conn, database_host, database_username, database_password, database_name, NULL,0, NULL );
+	conn = mysql_real_connect(conn, database_host, database_username, database_password, database_name,0, NULL, 0 );
 	
 	if (conn == NULL) {
 		
@@ -613,13 +633,13 @@ int main(int argc, char *argv[])
 		printf ("He recibido conexion\n");
 
 
-		pthread_mutex_lock(&mutex);
-		user_list.users[user_list.num].socket = s;
-		user_list.users[user_list.num].logged_in = 0;
-		user_list.num++;
-		pthread_mutex_unlock(&mutex);
+/*		pthread_mutex_lock(&mutex);*/
+/*		user_list.users[user_list.num].socket = s;*/
+/*		user_list.users[user_list.num].logged_in = 0;*/
+/*		user_list.num++;*/
+/*		pthread_mutex_unlock(&mutex);*/
 		
-		pthread_create(&user_list.users[user_list.num - 1].thread, NULL, AtenderCliente, &s);
+		pthread_create(&thread[i], NULL, AtenderCliente, &s);
 	
 	}
 		
