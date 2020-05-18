@@ -55,6 +55,7 @@ namespace WindowsFormsApplication1
                     case 6: 
                         // string[] res = mensaje.Split('/');
                         ListaConectados.Rows.Clear();
+                        ListaConectados.RowCount = Convert.ToInt32(trozos[1]);
                         ListaConectados.Name = "Conectados";
                         ListaConectados.ColumnCount = 1;
                         ListaConectados.RowHeadersVisible = false;
@@ -62,12 +63,14 @@ namespace WindowsFormsApplication1
                         ListaConectados.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCellsExceptHeaders;
                         ListaConectados.Columns[0].Name = "Jugadores";
                         //contLbl.Text = mensaje;
-                        int i = 2;
-                        while (i <= Convert.ToInt32(trozos[1]))
+                        int i = 0;
+                        int j = 2;
+                        while (i < Convert.ToInt32(trozos[1]))
                         {
                            
-                            ListaConectados.Rows.Add(trozos[i]);
+                            ListaConectados.Rows[i].Cells[0].Value = trozos[j];
                             i = i + 1;
+                            j = j + 1;
                         }
                         break;
                 }
