@@ -12,6 +12,7 @@ using System.Threading;
 
 namespace WindowsFormsApplication1
 {
+    
     public partial class Form1 : Form
     {
         Socket server;
@@ -19,23 +20,25 @@ namespace WindowsFormsApplication1
         public Form1()
         {
             InitializeComponent();
+            CheckForIllegalCrossThreadCalls = false; //Necesario para que los elementos de los formularios puedan ser
+            //accedidos desde threads diferentes a los que los crearon
         }
         private void AtenderServidor()
         {
             while (true)
             {
-                //hola
                 byte[] msg2 = new byte[80];
                 server.Receive(msg2);
-                string[] trozos = Encoding.ASCII.GetString(msg2).Split('/');
+                string mensaje = Encoding.ASCII.GetString(msg2).TrimEnd('\0');
+                string[] trozos = mensaje.Split('/');
                 int codigo = Convert.ToInt32(trozos[0]);
                 //string mensaje = mensaje = trozos[1].Split('\0')[0];
-                string mensaje = trozos[1].Split('\0')[0];
+               
 
                 switch (codigo)
                 {
                     case 1:
-                        MessageBox.Show(mensaje);
+                        MessageBox.Show(trozos[1]);
                         break;
                     case 2:
                         MessageBox.Show(mensaje);
@@ -49,32 +52,36 @@ namespace WindowsFormsApplication1
                     case 5:
                         MessageBox.Show(mensaje);
                         break;
-                    case 6: 
+                    case 6:
                         string[] res = mensaje.Split('/');
                         ListaConectados.Rows.Clear();
-                        ListaConectados.Name = "Conectados";
-                        ListaConectados.ColumnCount = 2;
-                        ListaConectados.RowHeadersVisible = false;
-                        ListaConectados.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-                        ListaConectados.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCellsExceptHeaders;
-                        ListaConectados.Columns[0].Name = "Jugadores";
-                        ListaConectados.Columns[1].Name = "Sockets";
-                        //contLbl.Text = mensaje;
-                        int i = 1;
-                        while (i <= Convert.ToInt32(res[0]))
+                        ListaConectados.RowCount = Convert.ToInt32(trozos[1]);
+                        int i = 0;
+                        int j = 2;
+                        while (i < Convert.ToInt32(trozos[1]))
                         {
-                            int s = 2 * i - 1;
-                            int r = 2 * i;
-                            ListaConectados.Rows.Add(res[s], res[r]);
+                           
+                            ListaConectados.Rows[i].Cells[0].Value = trozos[j];
                             i = i + 1;
+                            j = j + 1;
                         }
                         break;
+
+                    case 10:
+                        MessageBox.Show("Has recibido una invitación de partida. Haz clic en aceptar para aceptarla");
+                        break;
+
+                    case 11:
+                        MessageBox.Show("La partida ha comenzado");
+                        break;
+
+                       
                 }
             }
         }
         private void button1_Click(object sender, EventArgs e)
         {
-            IPAddress direc = IPAddress.Parse("192.168.56.104"); // 192.168.56.102 192.168.1.127 mia 192.168.56.101  o 147.83.117.22
+            IPAddress direc = IPAddress.Parse("192.168.1.127"); // 192.168.56.102 192.168.1.127 mia 192.168.56.101  o 147.83.117.22
             IPEndPoint ipep = new IPEndPoint(direc, 50007); //9001
 
 
@@ -116,10 +123,6 @@ namespace WindowsFormsApplication1
             byte[] msg = System.Text.Encoding.ASCII.GetBytes(mensaje);
             server.Send(msg);
 
-         
-
-          
-            
         }
 
         private void register_Click(object sender, EventArgs e)
@@ -129,12 +132,7 @@ namespace WindowsFormsApplication1
             byte[] msg = System.Text.Encoding.ASCII.GetBytes(mensaje);
             server.Send(msg);
 
-            
-            
-
         }
-
-
 
         private void button1_Click_1(object sender, EventArgs e)
         {
@@ -166,9 +164,6 @@ namespace WindowsFormsApplication1
             }
         }
             
-            
-            
-
         private void ganador_CheckedChanged(object sender, EventArgs e)
         {
 
@@ -197,6 +192,37 @@ namespace WindowsFormsApplication1
             this.BackColor = Color.Gray;
             server.Shutdown(SocketShutdown.Both);
             server.Close();
+        }
+
+        private void button1_Click_2(object sender, EventArgs e)
+        {
+            string mensaje = "10/";
+
+            foreach (DataGridViewRow r in ListaConectados.SelectedRows)
+            {
+
+                mensaje += r.Cells[0].Value.ToString() + "/";
+                
+            }
+
+            byte[] msg = System.Text.Encoding.ASCII.GetBytes(mensaje);
+            server.Send(msg);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            string mensaje = "11/";
+
+            byte[] msg = System.Text.Encoding.ASCII.GetBytes(mensaje);
+            server.Send(msg);
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            string mensaje = "12/";
+
+            byte[] msg = System.Text.Encoding.ASCII.GetBytes(mensaje);
+            server.Send(msg);
         }
     }
 }

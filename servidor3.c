@@ -23,106 +23,125 @@ typedef struct
 	int socket; // User's socket
 	pthread_t thread; //User's thread
 	int logged_in;
+	int partida;
+	int accepted;
 	char nombre[20];
-	//char username[username_max_length]; //Username
-	//char email[email_max_length];  //Email	
+	char username[20]; //Username
 }User;
-
-/*typedef struct*/
-/*{*/
-/*	int num;*/
-/*	User users[max_users];*/
-
-/*}UserList; */
 
 typedef struct
 {
 	int num;
-	User conectados[100];
-}ListaConectados;
-//UserList user_list;
+	User users[max_users];
+
+}UserList; 
+
+UserList user_list;
 MYSQL *conn;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-int sockets [100];
 
-ListaConectados miLista;
+int get_user_socket(int socket);
+void *AtenderCliente (void *socket);
+int main(int argc, char *argv[]);
+void delete_user(int socket);
+void send_client(char buffer[512], int socket, char who[50]);
+void writeint(char buffer[512], int num);
+void send_user_list(char output[512]);
 
-int get_user_socket(ListaConectados *lista,int socket) {
+void send_user_list(char output[512]) {
 
-	for (int pos = 0; pos < lista->num; pos++)
-		if (lista->conectados[pos].socket == socket)
+	writeint(output, user_list.num);
+
+	for (int i = 0; i < user_list.num; i++) {
+		
+		if (user_list.users[i].logged_in == 1) { 
+
+			sprintf(output, "%s%s/", output, user_list.users[i].username);
+		
+		}
+		
+	}
+
+}
+
+void writeint(char buffer[512], int num) {
+
+	char n[10];
+	sprintf(n, "%d", num);
+	strcat(buffer, n);
+	strcat(buffer, "/");
+
+}
+
+void delete_user(int socket) {
+
+	pthread_mutex_lock(&mutex);
+
+	int i = get_user_socket(socket);
+
+	for (int a = i; a < (user_list.num - 1); a++){
+
+		user_list.users[a] = user_list.users[a + 1];
+
+	}
+
+	user_list.num--;
+
+	pthread_mutex_unlock(&mutex);
+
+	char buffer[512];
+	writeint(buffer, 6);
+	send_user_list(buffer);
+	send_client(buffer, socket, "all");
+
+}
+
+void send_client(char buffer[512], int socket, char who[50]) {
+
+	buffer[strlen(buffer)] = '\0';
+
+	if (strcmp(who, "self") == 0) {
+	
+		write(socket, buffer, strlen(buffer)); 
+
+	} else if (strcmp(who, "others") == 0) {
+
+		for (int i = 0; i < user_list.num; i++)
+			if (user_list.users[i].socket != socket)
+				if (user_list.users[i].logged_in)
+					write(user_list.users[i].socket, buffer, strlen(buffer)); 
+
+	} else if (strcmp(who, "all") == 0) {
+
+		for (int i = 0; i < user_list.num; i++)
+			if (user_list.users[i].logged_in)
+				write(user_list.users[i].socket, buffer, strlen(buffer)); 
+
+	} else {
+
+		printf("send_client error\n");
+
+	}
+
+}
+	
+
+int get_user_socket(int socket) {
+
+	for (int pos = 0; pos < user_list.num; pos++)
+		if (user_list.users[pos].socket == socket)
 			return pos;
 
-}
-int Pon (ListaConectados *lista, char nombre[20]){
-	if (lista->num<100){
-		strcpy(lista->conectados[lista->num].nombre,nombre);
-		//
-		lista->num++;
-		return 0;
-	}
-	else
-		return -1;
-
-	
-}
-int DameSocket(ListaConectados *lista, char nombre[20]){
-	int i=0;
-	int encontrado=0;
-	while ((i<lista->num)&&!encontrado){
-		if (strcmp(lista->conectados[i].nombre,nombre)==0)
-			encontrado=1;
-		if(!encontrado)
-			i=i+1;
-	}
-	if (encontrado)
-		return lista->conectados[i].socket;
-	else
-		return -1;
-}
-
-int Eliminar (ListaConectados *lista, char nombre[20]){
-	int encontrado=0;
-	int i=0;
-	while ((i<lista->num)&&(!encontrado))
-	{
-		if (strcmp(lista->conectados[i].nombre,nombre)==0)
-			encontrado=1;
-		else
-			i=i+1;
-	}
-	if (encontrado)
-	{
-		while (i<lista->num-1)
-		{
-			lista->conectados[i]=lista->conectados[i+1];
-			i=i+1;
-		}
-		lista->num=lista->num-1;
-		return 0;
-	}
-	else
-		return -1;
-}
-void DameConectados(ListaConectados *lista, char conectados[200]){
-	int i;
-	sprintf (conectados,"%d",lista->num);
-	for (i=0;i<lista->num;i++);
-		sprintf (conectados,"%s/%s",conectados,lista->conectados[i].nombre);
-	
 }
 
 void *AtenderCliente (void *socket)
 {
-	int sock_conn = *((int *) socket);
-	// ListaConectados miLista;
-					
+	int sock_conn = *((int *) socket);		
 	// Entramos en un bucle para atender todas las peticiones de este cliente
 	//hasta que se desconecte
 	int terminar = 0;
 	
-					
-	
+				
 	while (terminar == 0)
 	{
 	
@@ -145,7 +164,7 @@ void *AtenderCliente (void *socket)
 		int numero=0;
 		int IDUs;
 
-		// Ahora recibimos la petici?n
+		// Ahora recibimos la peticion
 		if (read(sock_conn, peticion, sizeof(peticion)) <= 0) {
 			
 			puts("Client disconnected");
@@ -165,7 +184,6 @@ void *AtenderCliente (void *socket)
 			case 0:
 			    puts("Client disconnected");
 				terminar = 1;
-				int r=Eliminar (&miLista,nombre);
 			break;
 			
 			case 1:
@@ -179,9 +197,6 @@ void *AtenderCliente (void *socket)
 					
 				strcpy(contrasenya,p);
 				
-				int y = Pon (&miLista,nombre);
-				
-							
 				sprintf(consulta,"SELECT Name FROM player WHERE Name='%s' AND Pass='%s'",nombre,contrasenya);
 				// hacemos la consulta 
 				err=mysql_query(conn, consulta); 
@@ -208,24 +223,28 @@ void *AtenderCliente (void *socket)
 				}
 				else
 				{
-					
-					Pon (&miLista, nombre);
-					
-					DameConectados(&miLista,conectados);
-					sprintf(notificacion,"6/%s",conectados);
-					printf("Notificacion: %s\n", notificacion);
-					int j=0;
-					while (j<miLista.num)
-					{
-						write(miLista.conectados[j].socket,notificacion,strlen(notificacion));
-	
-						j=j+1;
+
+					pthread_mutex_lock(&mutex);
+					for (int i = 0; i < user_list.num; i++) {
+		
+						if (user_list.users[i].socket == sock_conn) { 
+
+                            user_list.users[i].logged_in = 1;
+							strcpy(user_list.users[i].username, row[0]);
+		
+						}
+		
 					}
+					pthread_mutex_unlock(&mutex);
 					
-					
-/*					printf ("Usuario %s encontrado.\n", row[0] );*/
-/*					strcat(respuesta,"1/Usuario encontrado");*/
-/*					write (sock_conn,respuesta, strlen(respuesta));*/
+					char buffer[512];
+					writeint(buffer, 6);
+					send_user_list(buffer);
+					send_client(buffer, sock_conn, "all");
+		
+					printf ("Usuario %s encontrado.\n", row[0] );
+					strcat(respuesta,"1/Usuario encontrado");
+					write (sock_conn,respuesta, strlen(respuesta));
 				}
 			
 			break;
@@ -400,18 +419,79 @@ void *AtenderCliente (void *socket)
 				}
 			
 			break;
-			case 6:
-				DameConectados(&miLista,conectados);
-				sprintf(notificacion,"6/%s",conectados);
-				printf("Notificacion: %s\n", notificacion);
-				int j=0;
-				while (j<miLista.num)
+			
+			case 10:
 				{
-					write(miLista.conectados[j].socket,notificacion,strlen(notificacion));
-					write(6,notificacion,strlen(notificacion));
-					write(sockets[j],notificacion,strlen(notificacion));
-					j=j+1;
+				char buffer[512];
+				writeint(buffer, 10);
+				send_client(buffer, sock_conn, "all");
+			}
+			break;
+			
+			case 11:
+			
+				pthread_mutex_lock(&mutex);
+				for (int i = 0; i < user_list.num; i++) {
+	
+					if (user_list.users[i].socket == sock_conn) { 
+
+						user_list.users[i].accepted = 1;
+
+					}
+	
 				}
+				pthread_mutex_unlock(&mutex);
+				
+				int en = 0;
+				
+				for (int i = 0; i < user_list.num; i++) {
+	
+					if (user_list.users[i].accepted == 0) { 
+
+						en = 1;
+
+					}
+	
+				}
+				
+				if (en == 0){ 
+					
+					char buffer[512];
+					writeint(buffer, 11);
+					send_client(buffer, sock_conn, "all");
+		
+				}
+				
+			break;
+			
+			case 12:
+			{
+			    int part = 0;
+			
+				for (int i = 0; i < user_list.num; i++) {
+	
+					if (user_list.users[i].socket == sock_conn) { 
+
+						part = user_list.users[i].partida;
+						break;
+	
+					}
+	
+				}
+				
+				pthread_mutex_lock(&mutex);
+				for (int i = 0; i < user_list.num; i++) {
+	
+					if (user_list.users[i].partida == part) { 
+
+						user_list.users[i].partida = 0;
+						user_list.users[i].accepted = 0;
+	
+					}
+	
+				}				
+				pthread_mutex_unlock(&mutex);
+				}	
 			break;
 			
 		}
@@ -419,152 +499,15 @@ void *AtenderCliente (void *socket)
 	}
  
 	
-	pthread_mutex_lock(&mutex);
-
-	int i = get_user_socket(&miLista,sock_conn);
-
-	for (int a = i; a < (miLista.num - 1); a++){
-
-		miLista.conectados[a] = miLista.conectados[a+1];
-
-	}
-
-	miLista.num--;
-
-	pthread_mutex_unlock(&mutex);
 	// Se acabo el servicio para este cliente
 	close(sock_conn);
+	
+	delete_user(sock_conn);
 	
 	puts("Connection closed");
 	
 }
 
-int funcion() {
-	
-	int err;
-	// Estructura especial para almacenar resultados de consultas 
-	MYSQL_RES *resultado;
-	MYSQL_ROW row;
-	int edad;
-	int numero;
-	char dni[10];
-	char consulta [200];
-	
-	// consulta SQL para obtener una tabla con todos los datos
-	// de la base de datos
-	err=mysql_query (conn, "SELECT * FROM player");
-	if (err!=0) {
-		printf ("Error al consultar datos de la base %u %s\n",
-				mysql_errno(conn), mysql_error(conn));
-		exit (1);
-	}
-	//recogemos el resultado de la consulta. El resultado de la
-	//consulta se devuelve en una variable del tipo puntero a
-	//MYSQL_RES tal y como hemos declarado anteriormente.
-	//Se trata de una tabla virtual en memoria que es la copia
-	//de la tabla real en disco.
-	resultado = mysql_store_result (conn);
-	// El resultado es una estructura matricial en memoria
-	// en la que cada fila contiene los datos de una persona.
-	
-	// Ahora obtenemos la primera fila que se almacena en una
-	// variable de tipo MYSQL_ROW
-	row = mysql_fetch_row (resultado);
-	// En una fila hay tantas columnas como datos tiene una
-	// persona. En nuestro caso hay tres columnas: dni(row[0]),
-	// nombre(row[1]) y edad (row[2]).
-	if (row == NULL)
-		printf ("No se han obtenido datos en la consulta\n");
-	else
-	{
-		while (row !=NULL) 
-		{
-			// la columna 2 contiene una palabra que es la edad
-			// la convertimos a entero 
-			
-			// las columnas 0 y 1 contienen DNI y nombre 
-			printf ("ID: %s, Username: %s, Password: %s\n", row[0], row[1], row[2]);
-			// obtenemos la siguiente fila
-			row = mysql_fetch_row (resultado);
-		}
-	}
-	
-	
-	err=mysql_query (conn, "SELECT * FROM relations");
-	if (err!=0) {
-		printf ("Error al consultar datos de la base %u %s\n",
-				mysql_errno(conn), mysql_error(conn));
-		exit (1);
-	}
-	//recogemos el resultado de la consulta. El resultado de la
-	//consulta se devuelve en una variable del tipo puntero a
-	//MYSQL_RES tal y como hemos declarado anteriormente.
-	//Se trata de una tabla virtual en memoria que es la copia
-	//de la tabla real en disco.
-	resultado = mysql_store_result (conn);
-	// El resultado es una estructura matricial en memoria
-	// en la que cada fila contiene los datos de una persona.
-	
-	// Ahora obtenemos la primera fila que se almacena en una
-	// variable de tipo MYSQL_ROW
-	row = mysql_fetch_row (resultado);
-	// En una fila hay tantas columnas como datos tiene una
-	// persona. En nuestro caso hay tres columnas: dni(row[0]),
-	// nombre(row[1]) y edad (row[2]).
-	if (row == NULL)
-		printf ("No se han obtenido datos en la consulta\n");
-	else
-	{
-		while (row !=NULL) 
-		{
-			// la columna 2 contiene una palabra que es la edad
-			// la convertimos a entero 
-			
-			// las columnas 0 y 1 contienen DNI y nombre 
-			printf ("Id jugador: %d, Id partida: %d, puntos: %d\n", atoi(row[0]), atoi(row[1]), atoi(row[2]));
-			// obtenemos la siguiente fila
-			row = mysql_fetch_row (resultado);
-		}
-	}
-	
-	err=mysql_query (conn, "SELECT * FROM games");
-	if (err!=0) {
-		printf ("Error al consultar datos de la base %u %s\n",
-				mysql_errno(conn), mysql_error(conn));
-		exit (1);
-	}
-	//recogemos el resultado de la consulta. El resultado de la
-	//consulta se devuelve en una variable del tipo puntero a
-	//MYSQL_RES tal y como hemos declarado anteriormente.
-	//Se trata de una tabla virtual en memoria que es la copia
-	//de la tabla real en disco.
-	resultado = mysql_store_result (conn);
-	// El resultado es una estructura matricial en memoria
-	// en la que cada fila contiene los datos de una persona.
-	
-	// Ahora obtenemos la primera fila que se almacena en una
-	// variable de tipo MYSQL_ROW
-	row = mysql_fetch_row (resultado);
-	// En una fila hay tantas columnas como datos tiene una
-	// persona. En nuestro caso hay tres columnas: dni(row[0]),
-	// nombre(row[1]) y edad (row[2]).
-	if (row == NULL)
-		printf ("No se han obtenido datos en la consulta\n");
-	else
-	{
-		while (row !=NULL) 
-		{
-			// la columna 2 contiene una palabra que es la edad
-			// la convertimos a entero 
-			
-			// las columnas 0 y 1 contienen DNI y nombre 
-			printf ("Id: %d, Ganador: %s, Durada: %d\n", atoi(row[0]), row[1], atoi(row[2]));
-			// obtenemos la siguiente fila
-			row = mysql_fetch_row (resultado);
-		}
-	}
-	
-}
 	
 int main(int argc, char *argv[])
 {
@@ -572,9 +515,7 @@ int main(int argc, char *argv[])
 	int sock_listen;
 	struct sockaddr_in serv_adr;
 	
-//	user_list.num = 0;
-	pthread_t thread[100]; //User's thread
-	int i = 0;
+	user_list.num = 0;
 	
 	if ((sock_listen = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		
@@ -633,13 +574,15 @@ int main(int argc, char *argv[])
 		printf ("He recibido conexion\n");
 
 
-/*		pthread_mutex_lock(&mutex);*/
-/*		user_list.users[user_list.num].socket = s;*/
-/*		user_list.users[user_list.num].logged_in = 0;*/
-/*		user_list.num++;*/
-/*		pthread_mutex_unlock(&mutex);*/
+		pthread_mutex_lock(&mutex);
+		user_list.users[user_list.num].socket = s;
+		user_list.users[user_list.num].logged_in = 0;
+		user_list.users[user_list.num].partida = 0;
+		user_list.users[user_list.num].accepted = 0;
+		user_list.num++;
+		pthread_mutex_unlock(&mutex);
 		
-		pthread_create(&thread[i], NULL, AtenderCliente, &s);
+		pthread_create(&user_list.users[user_list.num - 1].thread, NULL, AtenderCliente, &s);
 	
 	}
 		
